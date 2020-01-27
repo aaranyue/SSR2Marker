@@ -1,7 +1,8 @@
 ## SSR2Marker
-An integrated pipeline for identification of SSR markers
 
-This program including a Perl file (*SSR2Marker.pl*) and a separate folder (*src*)
+###An integrated pipeline for identification of SSR markers.
+
+This pipeline includes a Perl file (*SSR2Marker.pl*) and a separate folder (*src*).
 
 The test data could be downloaded from the website: [ftp://www.atcgn.com/SSR2Marker](ftp://www.atcgn.com/SSR2Marker), including *Hongyang.fasta* and *White.fasta*.
 

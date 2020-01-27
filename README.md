@@ -1,6 +1,6 @@
 ## SSR2Marker
 
-###An integrated pipeline for identification of SSR markers.
+### An integrated pipeline for identification of SSR markers.
 
 This pipeline includes a Perl file (*SSR2Marker.pl*) and a separate folder (*src*).
 

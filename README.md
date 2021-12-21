@@ -33,7 +33,7 @@ use it directly !
 
 ## Usage ##
 
-perl SSR2Marker.pl _[option1]_ <value1> _[option2]_ <value2> ... _[optionN]_ <valueN>
+perl SSR2Marker.pl _[option1]_ __<value1>__ _[option2]_ <value2> ... _[optionN]_ <valueN>
 
 ## Options ##
 
@@ -48,31 +48,37 @@ perl SSR2Marker.pl _[option1]_ <value1> _[option2]_ <value2> ... _[optionN]_ <va
 
 **Note** : The FASTA files are necessary. The MISA files are optional. If users have existing MISA results, they are suggested to provide them in the current step. This will save about 17% operation times to obtain the SSR primers. While the MISA results were not provided, SSR2Marker will begin with performing the MISA analysis until obtaining the SSR primers. What the users need to know is that the MISA results may present some difference due to the different parameter settings. Anyway, both the FASTA and MISA (if provided) files from two species should be provided together.
 
+## Syntax ##
+
 ### Syntax 1 ###
+
 #### Suppose users just have two FASTA files named Hongyang.fasta and White.fasta. ####
 
-[user@localhost]$ `cd <your directory path>`
-[user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta`
++ [user@localhost]$ `cd <your directory path>`
++ [user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta`
 
-Syntax 2 - Suppose users have two FASTA files as well as their respective MISA results
-           named Hongyang.fasta, Hongyang.fasta.misa, White.fasta and White.fasta.misa.
+### Syntax 2 ###
 
-[user@localhost]$ cd <your directory path>
-[user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta\
-                  -m1 Hongyang.fasta.misa -m2 White.fasta.misa
+#### Suppose users have two FASTA files as well as their respective MISA results named Hongyang.fasta, Hongyang.fasta.misa, White.fasta and White.fasta.misa. ####
 
-Syntax 3 - Suppose users want to set the SSR motifs.
++ [user@localhost]$ `cd <your directory path>`
++ [user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -m1 Hongyang.fasta.misa -m2 White.fasta.misa`
 
-[user@localhost]$ cd <your directory path>
-[user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -m
+### Syntax 3 ###
 
-Syntax 4 - Suppose users want to set a different length for selection of flanking
-           sequences.
+#### Suppose users want to set the SSR motifs. ####
 
-[user@localhost]$ cd <your directory path>
-[user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -f 150
++ [user@localhost]$ cd <your directory path>
++ [user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -m
 
-Test
+### Syntax 4 ###
+
+#### Suppose users want to set a different length for selection of flanking sequences. ####
+
++ [user@localhost]$ cd <your directory path>
++ [user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -f 150
+
+## Test ##
 
 The test data could be downloaded from the website: https://github.com/aaranyue/SSR2Marker,
 including Hongyang.fasta and White.fasta. Otherwise, users could also use their own
@@ -82,7 +88,7 @@ pipeline. After running, a total of 10 result files in a new folder, including d
 information of SSR motifs, primer pairs, amplified fragments, sequence sizes, length
 polymorphisms and statistics calculations, are obtained.
 
-Email
+## Email ##
 
 Thank you for using SSR2Marker. If you have any question or suggestion, please contact
 us via the Email address: yuejy@ahau.edu.cn.

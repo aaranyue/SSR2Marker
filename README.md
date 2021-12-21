@@ -81,7 +81,7 @@ perl SSR2Marker.pl _[option1]_ \<value1\> _[option2]_ \<value2\> ... _[optionN]_
 ## Test ##
 
 The test data could be downloaded from the website: http://kiwifruitgenome.org/,
-including [Hongyang.fasta](http://kiwifruitgenome.org/ftp/A_chinensis/Hongyang/v2.0/Hongyang_genome_v2.0.fa.gz) and [White.fasta]. Otherwise, users could also use their own
+including [Hongyang.fasta](http://kiwifruitgenome.org/ftp/A_chinensis/Hongyang/v2.0/Hongyang_genome_v2.0.fa.gz) and [White.fasta](http://kiwifruitgenome.org/ftp/A_eriantha/White/v1.0/White_genome_v1.0.fasta.gz). Otherwise, users could also use their own
 sequence data only required in the FASTA format. After obtaining the data (e.g.,
 Hongyang.fasta, White.fasta), users are simply needed to type one command to run this
 pipeline. After running, a total of 10 result files in a new folder, including detailed

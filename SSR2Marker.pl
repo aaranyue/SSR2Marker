@@ -42,7 +42,7 @@ GetOptions(
 	'misa2|m2=s'         =>   \$misa2,
 	'motif|m!'           =>   \$motif,
 	'flanking|f=i'       =>   \$flanking_sequence_length,
-    'out|o=s'            =>   \$output_name,
+	'out|o=s'            =>   \$output_name,
 	'version|v!'         =>   \$version,
 	'help|h!'            =>   \$help,
 ) or die;

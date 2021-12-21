@@ -1,16 +1,16 @@
 # User Guide of SSR2Marker #
----
+
 ## Author ##
 Junyang Yue
----
+
 ## Version ##
 =======
 SSR2Marker v1.0
----
+
 ## Date ##
 ====
 2021-11-28
----
+
 ## Introduction ##
 ============
 SSR2Marker is an integrated pipeline for identification of SSR markers, classification
@@ -24,7 +24,7 @@ integrated with BLAST, MAFFT, Primer3 and e-PCR.
 + MAFFT is freely available at https://mafft.cbrc.jp/alignment/software/source.html.
 + Primer3 is freely available at https://github.com/primer3-org/primer3.
 + e-PCR is freely available at http://ftp.debian.org/debian/pool/main/e/epcr/.
----
+
 Download
 ========
 SSR2Marker is freely available at from https://github.com/aaranyue/SSR2Marker.

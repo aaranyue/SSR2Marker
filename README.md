@@ -17,7 +17,7 @@ definite comparison value of sequence length. This program is written in Perl an
 integrated with BLAST, MAFFT, Primer3 and e-PCR.
 
 + PERL5 is freely available at https://www.perl.org/.
-+ BLAST is freely available at ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST.
++ BLAST is freely available at (ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST).
 + MAFFT is freely available at https://mafft.cbrc.jp/alignment/software/source.html.
 + Primer3 is freely available at https://github.com/primer3-org/primer3.
 + e-PCR is freely available at http://ftp.debian.org/debian/pool/main/e/epcr/.

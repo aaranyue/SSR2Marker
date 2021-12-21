@@ -37,33 +37,22 @@ perl SSR2Marker.pl _[option1]_ <value1> _[option2]_ <value2> ... _[optionN]_ <va
 
 ## Options ##
 
-+ -f1|-fasta1     <str> : A single file in FASTA format containing the genomic or
-                        transcriptomic sequence(s) from species A.
-+ -f2|-fasta2     <str> : A single file in FASTA format containing the genomic or
-                        transcriptomic sequence(s) from species B.
-+ -m1|-misa1      <str> : The MISA result of species A produced by the MISA program.
-+ -m2|-misa2      <str> : The MISA result of species B produced by the MISA program.
-+ -m |-motif      <str> : Setting the motifs for SSR identification through navigational
-                        operations (default: 1=10,2=6,3=5,4=5,5=5,6=5).
-+ -f |-flanking   <int> : Length of the flanking sequences between each SSR locus (must
-                        be an integer and larger than 100 (bp), default: 200).
-+ -v |-version          : Showing the version information.
-+ -h |-help             : Showing the help information.
++ -f1 | -fasta1     <str> : A single file in FASTA format containing the genomic or transcriptomic sequence(s) from species A.
++ -f2 | -fasta2     <str> : A single file in FASTA format containing the genomic or transcriptomic sequence(s) from species B.
++ -m1 | -misa1      <str> : The MISA result of species A produced by the MISA program.
++ -m2 | -misa2      <str> : The MISA result of species B produced by the MISA program.
++ -m  | -motif      <str> : Setting the motifs for SSR identification through navigational operations (default: 1=10,2=6,3=5,4=5,5=5,6=5).
++ -f  | -flanking   <int> : Length of the flanking sequences between each SSR locus (must be an integer and larger than 100 (bp), default: 200).
++ -v  |-version           : Showing the version information.
++ -h  |-help              : Showing the help information.
 
-**Note** :      The FASTA files are necessary. The MISA files are optional. If users
-                have existing MISA results, they are suggested to provide them in the
-                current step. This will save about 17% operation times to obtain the
-                SSR primers. While the MISA results were not provided, SSR2Marker will
-                begin with performing the MISA analysis until obtaining the SSR
-                primers. What the users need to know is that the MISA results may
-                present some difference due to the different parameter settings.
-                Anyway, both the FASTA and MISA (if provided) files from two species
-                should be provided together.
+**Note** : The FASTA files are necessary. The MISA files are optional. If users have existing MISA results, they are suggested to provide them in the current step. This will save about 17% operation times to obtain the SSR primers. While the MISA results were not provided, SSR2Marker will begin with performing the MISA analysis until obtaining the SSR primers. What the users need to know is that the MISA results may present some difference due to the different parameter settings. Anyway, both the FASTA and MISA (if provided) files from two species should be provided together.
 
-### Syntax 1 ### - Suppose users just have two FASTA files named Hongyang.fasta and White.fasta.
+### Syntax 1 ###
+#### Suppose users just have two FASTA files named Hongyang.fasta and White.fasta. ####
 
-[user@localhost]$ cd <your directory path>
-[user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta
+[user@localhost]$ `cd <your directory path>`
+[user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta`
 
 Syntax 2 - Suppose users have two FASTA files as well as their respective MISA results
            named Hongyang.fasta, Hongyang.fasta.misa, White.fasta and White.fasta.misa.

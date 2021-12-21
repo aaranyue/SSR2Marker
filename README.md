@@ -33,7 +33,7 @@ use it directly !
 
 ## Usage ##
 
-perl SSR2Marker.pl _[option1]_ __<value1>__ _[option2]_ <value2> ... _[optionN]_ <valueN>
+perl SSR2Marker.pl _[option1]_ \<value1\> _[option2]_ <value2> ... _[optionN]_ <valueN>
 
 ## Options ##
 

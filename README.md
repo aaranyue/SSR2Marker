@@ -33,7 +33,7 @@ use it directly !
 
 ## Usage ##
 
-perl SSR2Marker.pl _[option1]_ \<value1\> _[option2]_ <value2> ... _[optionN]_ <valueN>
+perl SSR2Marker.pl _[option1]_ \<value1\> _[option2]_ \<value2\> ... _[optionN]_ \<valueN\>
 
 ## Options ##
 
@@ -68,15 +68,15 @@ perl SSR2Marker.pl _[option1]_ \<value1\> _[option2]_ <value2> ... _[optionN]_ <
 
 #### Suppose users want to set the SSR motifs. ####
 
-+ [user@localhost]$ cd <your directory path>
-+ [user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -m
++ [user@localhost]$ `cd <your directory path>`
++ [user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -m`
 
 ### Syntax 4 ###
 
 #### Suppose users want to set a different length for selection of flanking sequences. ####
 
-+ [user@localhost]$ cd <your directory path>
-+ [user@localhost]$ perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -f 150
++ [user@localhost]$ `cd <your directory path>`
++ [user@localhost]$ `perl SSR2Marker.pl -f1 Hongyang.fasta -f2 White.fasta -f 150`
 
 ## Test ##
 

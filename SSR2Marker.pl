@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Program name: SSR2Marker.pl
-# Release date: 28/11/2021
+# Release date: 28/01/2022
 # Current version: Version 1.0
 
 # Author: Junyang Yue
@@ -16,6 +16,7 @@ use strict;
 use File::Copy;
 use FileHandle;
 use File::Basename qw/basename/;
+use Cwd 'abs_path';
 use threads;
 use Getopt::Long;
 use POSIX qw/mktime/;
@@ -30,19 +31,20 @@ my $current_version = 'SSR2Marker v1.0';
 
 #Set default options
 
-my ($fasta1, $fasta2, $misa1, $misa2, $motif, $output_name, $version, $help);
-my $flanking_sequence_length = 200;
+my ($fasta1, $fasta2, $misa1, $misa2, $motif, $flanking_sequence_length, $output_name, $version, $help);
+
+our @suffix_list = qw(.gz .fa .fq .fasta .fastq .genome .tab .txt);
 
 #Fetch options from command line
 
-GetOptions(
+GetOptions (
 	'fasta1|f1=s'        =>   \$fasta1,
 	'fasta2|f2=s'        =>   \$fasta2,
 	'misa1|m1=s'         =>   \$misa1,
 	'misa2|m2=s'         =>   \$misa2,
 	'motif|m!'           =>   \$motif,
 	'flanking|f=i'       =>   \$flanking_sequence_length,
-	'out|o=s'            =>   \$output_name,
+    'out|o=s'            =>   \$output_name,
 	'version|v!'         =>   \$version,
 	'help|h!'            =>   \$help,
 ) or die;
@@ -52,7 +54,8 @@ GetOptions(
 my $usage = <<__USAGE__;
 ###############################################################################
 Name:
-  SSR2Marker - Identify candidate SSRs that are suited to be molecular markers.
+  SSR2Marker - Identify candidate SSRs that are well suited for use as 
+  molecular markers.
 Description:
   An integrated pipeline for identification of SSR markers between two
   genome-scale sequences.
@@ -90,11 +93,15 @@ die "Error: options '-f1' and '-f2' must be different !$message" if $fasta1 eq $
 die "Error: option '-m2' must be provided !\n" if $misa1 and ! $misa2;
 die "Error: option '-m1' must be provided !\n" if $misa2 and ! $misa1;
 die "Error: options '-m1' and '-m2' must be different !$message" if $misa1 and $misa1 eq $misa2;
-die "Error: option '-f' must be an integer larger than 100 !$message" if $flanking_sequence_length <= 99 or $flanking_sequence_length =~ /\.\d*[1-9]+/;
+die "Error: option '-f' must be an integer larger than 100 !$message" if ($flanking_sequence_length && ($flanking_sequence_length <= 99)) or $flanking_sequence_length =~ /\.\d*[1-9]+/;
 
 #Obtain folder basename
-our $fasta1_base = basename $fasta1;
-our $fasta2_base = basename $fasta2;
+my $abs_fasta1 = abs_path ($fasta1);
+my $base_fasta1 = basename ($fasta1);
+my $prefix_fasta1 = basename ($fasta1, @suffix_list);
+my $abs_fasta2 = abs_path ($fasta2);
+my $base_fasta2 = basename ($fasta2);
+my $prefix_fasta2 = basename ($fasta2, @suffix_list);
 
 #Check the dependent software
 print "Beginning to check the dependent softwares needed in this program \.\.\. \n"; #label
@@ -122,6 +129,12 @@ if ($motif) {
 } else {
 	$motifs = '1=10,2=6,3=5,4=5,5=5,6=5';
 }
+my $flanking_sequence_lengths;
+if ($flanking_sequence_length) {
+	$flanking_sequence_lengths = $flanking_sequence_length;
+} else {
+	$flanking_sequence_lengths = 200;
+}
 
 
 #========================================#
@@ -137,30 +150,37 @@ print "\nPreparing the working directory \.\.\. \n"; #label
 mkdir "./$workfile/";
 print "The working directory is successfully built\. \n"; #label
 	
-&copyFastaFile ("./$fasta1", "./$workfile/$fasta1_base", "./$workfile/$fasta1_base.rename", 6);
-&copyFastaFile ("./$fasta2", "./$workfile/$fasta2_base", "./$workfile/$fasta2_base.rename", 6);
+if (! -e -f "$base_fasta1") {
+	system "ln -s $abs_fasta1 $base_fasta1";
+}
+if (! -e -f "$base_fasta2") {
+	system "ln -s $abs_fasta2 $base_fasta2";
+}
+
+&copyFastaFile ("./$fasta1", "./$workfile/$prefix_fasta1.fasta", "./$workfile/$prefix_fasta1.rename", 6);
+&copyFastaFile ("./$fasta2", "./$workfile/$prefix_fasta2.fasta", "./$workfile/$prefix_fasta2.rename", 6);
 
 if ($misa1) {
-	&changeMISAFormat ($misa1, "./$workfile/$fasta1_base.rename", "./$workfile/$fasta1_base.misa");
-	&changeMISAFormat ($misa2, "./$workfile/$fasta2_base.rename", "./$workfile/$fasta2_base.misa");
+	&changeMISAFormat ($misa1, "./$workfile/$prefix_fasta1.rename", "./$workfile/$prefix_fasta1.misa");
+	&changeMISAFormat ($misa2, "./$workfile/$prefix_fasta2.rename", "./$workfile/$prefix_fasta2.misa");
 } else {
 	print "Beginning to identify the SSRs in the input files \.\.\. \n"; #label
-	&runMISAProgram ("./$workfile/$fasta1_base", "./$workfile/$fasta1_base.misa", $motifs);
-	&runMISAProgram ("./$workfile/$fasta2_base", "./$workfile/$fasta2_base.misa", $motifs);
+	&runMISAProgram ("./$workfile/$prefix_fasta1.fasta", "./$workfile/$prefix_fasta1.misa", $motifs);
+	&runMISAProgram ("./$workfile/$prefix_fasta2.fasta", "./$workfile/$prefix_fasta2.misa", $motifs);
 	print "Finishing the identification of SSRs\. \n"; #label
 }
 
 print "Grabbing the SSR sequences as well as their upstream and downstream sequences \.\.\. \n"; #label
-&handleMISAResult ("./$workfile/$fasta1_base", $flanking_sequence_length, 6);
-&handleMISAResult ("./$workfile/$fasta2_base", $flanking_sequence_length, 6);
+&handleMISAResult ("./$workfile/$prefix_fasta1.fasta", $flanking_sequence_lengths, 6);
+&handleMISAResult ("./$workfile/$prefix_fasta2.fasta", $flanking_sequence_lengths, 6);
 
 system "cat ./$workfile/*.up ./$workfile/*.down > ./$workfile/merge.flanking";
-system "cat ./$workfile/$fasta1_base.unit ./$workfile/$fasta2_base.unit > ./$workfile/merge.unit";
+system "cat ./$workfile/$prefix_fasta1.unit ./$workfile/$prefix_fasta2.unit > ./$workfile/merge.unit";
 if (-s "./$workfile/merge.flanking") {
 	$/ = "\n";
 	open (IN, "./$workfile/merge.flanking") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
-	open (OUT1, ">./$workfile/$fasta1_base.flanking.fasta");
-	open (OUT2, ">./$workfile/$fasta2_base.flanking.fasta");
+	open (OUT1, ">./$workfile/$prefix_fasta1.flanking.fasta");
+	open (OUT2, ">./$workfile/$prefix_fasta2.flanking.fasta");
 	while (<IN>) {
 		chomp;
 		if ($_) {
@@ -170,9 +190,9 @@ if (-s "./$workfile/merge.flanking") {
 			if ($line[5] !~ m/^N+$/i) {
 				$line[5] =~ s/N//gi;
 				$line[5] =~ s/(B|D|E|F|H|I|J|K|L|M|O|P|Q|R|S|U|V|W|X|Y|Z)//gi;
-				if ($line[0] =~ m/$fasta1_base/) {
+				if ($line[0] =~ m/$prefix_fasta1/) {
 					print OUT1 ">".$line[0]."\n".$line[5]."\n";
-				} elsif ($line[0] =~ m/$fasta2_base/) {
+				} elsif ($line[0] =~ m/$prefix_fasta2/) {
 					print OUT2 ">".$line[0]."\n".$line[5]."\n";
 				}
 			}
@@ -188,11 +208,11 @@ mkdir "./temp/db/";
 mkdir "./temp/input/";
 mkdir "./temp/output/";
 
-copy ("./$workfile/$fasta1_base.flanking.fasta","./temp/db/reference.fasta");
-copy ("./$workfile/$fasta2_base.flanking.fasta","./temp/input/query.fasta");
+copy ("./$workfile/$prefix_fasta1.flanking.fasta", "./temp/db/reference.fasta");
+copy ("./$workfile/$prefix_fasta2.flanking.fasta", "./temp/input/query.fasta");
 
-&runBlastProgram ("./temp/db/reference.fasta", "./temp/input/query.fasta", "./temp/output/both_flanking_seq.blast", "1e-5", 80);
-copy ("./temp/output/both_flanking_seq.blast","./$workfile/");
+&runBlastProgram ("./temp/db/reference.fasta", "./temp/input/query.fasta", "./temp/output/both_flanking_seq.blast", "1e-5", $thread);
+copy ("./temp/output/both_flanking_seq.blast", "./$workfile/");
 
 print "Beginning to identify single-copy SSRs \.\.\. \n"; #label
 if (-s "./$workfile/both_flanking_seq.blast") {
@@ -209,7 +229,7 @@ if (-s "./$workfile/both_flanking_seq.blast") {
 		chomp ($line[3]);
 		chomp ($line[8]);
 		chomp ($line[9]);
-		if ($line[3] > $flanking_sequence_length/2) { #half of the select cut length
+		if ($line[3] > $flanking_sequence_lengths/2) { #half of the select cut length
 			if ($line[8] < $line[9]) {
 				print OUT $line[0]."\t".$line[1]."\t"."F"."\n"; #Forward
 				print OUT1 $line[0]."\n";
@@ -313,7 +333,7 @@ if (-s "./$workfile/both_flanking_seq.blast_1_2.tab.singlecopy") {
 	}
 	close (MG);
 	sub storeSSRClass;
-	my $sub_hash= &storeSSRClass;
+	my $sub_hash = &storeSSRClass;
 	
 	open (IN, "./$workfile/both_flanking_seq.blast_1_2.tab.singlecopy") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
 	open (OUT, ">./$workfile/both_flanking_seq.blast_1_2.tab.singlecopy.match");
@@ -498,15 +518,15 @@ system "primer3_core ./$workfile/primer_prepare.txt > ./$workfile/primer_bank.tx
 mkdir "./temp/epcr/";
 mkdir "./temp/epcr/output/";
 
-system "mv ./$workfile/$fasta1_base ./temp/epcr/";
-system "mv ./$workfile/$fasta2_base ./temp/epcr/";
+system "mv ./$workfile/$prefix_fasta1.fasta ./temp/epcr/";
+system "mv ./$workfile/$prefix_fasta2.fasta ./temp/epcr/";
 
-system "famap -t n -b ./temp/epcr/$fasta1_base.famap ./temp/epcr/$fasta1_base" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
-system "famap -t n -b ./temp/epcr/$fasta2_base.famap ./temp/epcr/$fasta2_base" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
-system "fahash -b ./temp/epcr/$fasta1_base.hash -w 12 -f 3 ./temp/epcr/$fasta1_base.famap" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
-system "fahash -b ./temp/epcr/$fasta2_base.hash -w 12 -f 3 ./temp/epcr/$fasta2_base.famap" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
-&primerToEPCR ("./$workfile/primer_extract.txt", $fasta1_base);
-&primerToEPCR ("./$workfile/primer_extract.txt", $fasta2_base);
+system "famap -t n -b ./temp/epcr/$prefix_fasta1.famap ./temp/epcr/$prefix_fasta1.fasta" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
+system "famap -t n -b ./temp/epcr/$prefix_fasta2.famap ./temp/epcr/$prefix_fasta2.fasta" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
+system "fahash -b ./temp/epcr/$prefix_fasta1.hash -w 12 -f 3 ./temp/epcr/$prefix_fasta1.famap" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
+system "fahash -b ./temp/epcr/$prefix_fasta2.hash -w 12 -f 3 ./temp/epcr/$prefix_fasta2.famap" || die ("\nError in $0: ePCR running is broken: $! !\n\n");
+&primerToEPCR ("./$workfile/primer_extract.txt", "$prefix_fasta1.fasta");
+&primerToEPCR ("./$workfile/primer_extract.txt", "$prefix_fasta2.fasta");
 &handleEPCRResult ("./$workfile/primer_eliminate.txt", "./$workfile/primer_check.txt", "./$workfile/primer_shortlong.temp", "./$workfile/primer_multimatch.temp");
 
 if (-s "./$workfile/primer_check.txt") {
@@ -547,8 +567,8 @@ if (-s "./$workfile/primer_check.txt") {
 	close (ORD);
 }
 
-system "mv ./temp/epcr/$fasta1_base ./$workfile/";
-system "mv ./temp/epcr/$fasta2_base ./$workfile/";
+system "mv ./temp/epcr/$prefix_fasta1.fasta ./$workfile/";
+system "mv ./temp/epcr/$prefix_fasta2.fasta ./$workfile/";
 
 if (-s "./$workfile/primer_order.txt") {
 	$/ = "\n";
@@ -614,17 +634,19 @@ if (-s "./$workfile/primer_order.txt") {
 			chomp ($line6[2]);
 			chomp ($line6[3]);
 			chomp ($line6[4]);
-			$hash6{$line6[0]} = $line6[1];
-			$hash7{$line6[0]} = $line6[2];
-			$hash8{$line6[0]} = $line6[3];
-			$hash9{$line6[0]} = $line6[4];
+			if (($line6[1] =~ m/^[A|C|G|T]+$/) && ($line6[3] =~ m/^[A|C|G|T]+$/)) {
+				$hash6{$line6[0]} = $line6[1];
+				$hash7{$line6[0]} = $line6[2];
+				$hash8{$line6[0]} = $line6[3];
+				$hash9{$line6[0]} = $line6[4];
+			}
 		}
 	}
 	close (HA6);
 	sub storeSSRClass;
 	my $sub_hash= &storeSSRClass;
 	$/ = ">";
-	open (HAA, "./$workfile/$fasta1_base") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+	open (HAA, "./$workfile/$prefix_fasta1.fasta") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
 	my @haa = <HAA>;
 	my %hasha; #species 1 or A
 	foreach (@haa) {
@@ -637,7 +659,7 @@ if (-s "./$workfile/primer_order.txt") {
 		$hasha{$linea[0]} = $linea[1];
 	}
 	close (HAA);
-	open (HAB, "./$workfile/$fasta2_base") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+	open (HAB, "./$workfile/$prefix_fasta2.fasta") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
 	my @hab = <HAB>;
 	my %hashb; #species 2 or B
 	foreach (@hab) {
@@ -655,7 +677,7 @@ if (-s "./$workfile/primer_order.txt") {
 	open (IN, "./$workfile/primer_check.txt") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
 	open (OUT, ">./$workfile/primer_overall.txt"); # totally 36 rows
 
-	print OUT "\#"."Primer_ID"."\t"."SSR2Marker_ID"."\t"."SSR_Class"."\t"."Primer_Pair_Count"."\t"."Primer_Pair_Number"."\t"."Primer_Forward"."\t"."Primer_Forward_Length"."\t"."Primer_Forward_Tm"."\t"."Primer_Reverse"."\t"."Primer_Reverse_Length"."\t"."Primer_Reverse_Tm"."\t"."Target_Sequence_Difference"."\t"."SSR_ID_".$fasta1_base."\t"."SSR_Unit_".$fasta1_base."\t"."SSR_Repeat_".$fasta1_base."\t"."SSR_Length_".$fasta1_base."\t"."SSR_Chromosome_".$fasta1_base."\t"."SSR_Chromosome_Direction_".$fasta1_base."\t"."SSR_Chromosome_Start_".$fasta1_base."\t"."SSR_Chromosome_End_".$fasta1_base."\t"."Target_Chromosome_Start_".$fasta1_base."\t"."Target_Chromosome_End_".$fasta1_base."\t"."Target_Seqence_".$fasta1_base."\t"."Target_Sequence_Length_".$fasta1_base."\t"."SSR_ID_".$fasta2_base."\t"."SSR_Unit_".$fasta2_base."\t"."SSR_Repeat_".$fasta2_base."\t"."SSR_Length_".$fasta2_base."\t"."SSR_Chromosome_".$fasta2_base."\t"."SSR_Chromosome_Direction_".$fasta2_base."\t"."SSR_Chromosome_Start_".$fasta2_base."\t"."SSR_Chromosome_End_".$fasta2_base."\t"."Target_Chromosome_Start_".$fasta2_base."\t"."Target_Chromosome_End_".$fasta2_base."\t"."Target_Seqence_".$fasta2_base."\t"."Target_Sequence_Length_".$fasta2_base."\n"; #title
+	print OUT "\#"."Primer_ID"."\t"."SSR2Marker_ID"."\t"."SSR_Class"."\t"."Primer_Pair_Count"."\t"."Primer_Pair_Number"."\t"."Primer_Forward"."\t"."Primer_Forward_Length"."\t"."Primer_Forward_Tm"."\t"."Primer_Reverse"."\t"."Primer_Reverse_Length"."\t"."Primer_Reverse_Tm"."\t"."Target_Sequence_Difference"."\t"."SSR_ID_".$prefix_fasta1."\t"."SSR_Unit_".$prefix_fasta1."\t"."SSR_Repeat_".$prefix_fasta1."\t"."SSR_Length_".$prefix_fasta1."\t"."SSR_Chromosome_".$prefix_fasta1."\t"."SSR_Chromosome_Direction_".$prefix_fasta1."\t"."SSR_Chromosome_Start_".$prefix_fasta1."\t"."SSR_Chromosome_End_".$prefix_fasta1."\t"."Target_Chromosome_Start_".$prefix_fasta1."\t"."Target_Chromosome_End_".$prefix_fasta1."\t"."Target_Seqence_".$prefix_fasta1."\t"."Target_Sequence_Length_".$prefix_fasta1."\t"."SSR_ID_".$prefix_fasta2."\t"."SSR_Unit_".$prefix_fasta2."\t"."SSR_Repeat_".$prefix_fasta2."\t"."SSR_Length_".$prefix_fasta2."\t"."SSR_Chromosome_".$prefix_fasta2."\t"."SSR_Chromosome_Direction_".$prefix_fasta2."\t"."SSR_Chromosome_Start_".$prefix_fasta2."\t"."SSR_Chromosome_End_".$prefix_fasta2."\t"."Target_Chromosome_Start_".$prefix_fasta2."\t"."Target_Chromosome_End_".$prefix_fasta2."\t"."Target_Seqence_".$prefix_fasta2."\t"."Target_Sequence_Length_".$prefix_fasta2."\n"; #title
 	
 	my ($primer_id, $ssr2marker_id, $ssr_class, $primer_pair_count, $primer_pair_number, $primer_forward, $primer_forward_length, $primer_forward_tm, $primer_reverse, $primer_reverse_length, $primer_reverse_tm, $target_sequence_difference, $ssr_id_species1, $ssr_unit_species1, $ssr_repeat_species1, $ssr_length_species1, $ssr_chromosome_species1, $ssr_chromosome_direction_species1, $ssr_chromosome_start_species1, $ssr_chromosome_end_species1, $target_chromosome_start_species1, $target_chromosome_end_species1, $target_seqence_species1, $target_sequence_length_species1, $ssr_id_species2, $ssr_unit_species2, $ssr_repeat_species2, $ssr_length_species2, $ssr_chromosome_species2, $ssr_chromosome_direction_species2, $ssr_chromosome_start_species2, $ssr_chromosome_end_species2, $target_chromosome_start_species2, $target_chromosome_end_species2, $target_seqence_species2, $target_sequence_length_species2);
 	my $i = 0;
@@ -707,7 +729,7 @@ if (-s "./$workfile/primer_order.txt") {
 			chomp ($b[4]);
 			chomp ($b[7]);
 			
-			if ($fasta1_base eq $a[0]) {
+			if ($prefix_fasta1 eq $a[0]) {
 				$ssr_chromosome_species1 = $a[1]; # row 17
 				$ssr_chromosome_direction_species1 = $a[2]; # row 18
 				$target_chromosome_start_species1 = $a[3]; # row 21
@@ -778,7 +800,9 @@ if (-s "./$workfile/primer_order.txt") {
 			#$ssr_class = $hash5{$ssr_unit_species1}; # row 3, only the same selected
 		}
 		
-		print OUT $primer_id."\t".$ssr2marker_id."\t".$ssr_class."\t".$primer_pair_count."\t".$primer_pair_number."\t".$primer_forward."\t".$primer_forward_length."\t".$primer_forward_tm."\t".$primer_reverse."\t".$primer_reverse_length."\t".$primer_reverse_tm."\t".$target_sequence_difference."\t".$ssr_id_species1."\t".$ssr_unit_species1."\t".$ssr_repeat_species1."\t".$ssr_length_species1."\t".$ssr_chromosome_species1."\t".$ssr_chromosome_direction_species1."\t".$ssr_chromosome_start_species1."\t".$ssr_chromosome_end_species1."\t".$target_chromosome_start_species1."\t".$target_chromosome_end_species1."\t".$target_seqence_species1."\t".$target_sequence_length_species1."\t".$ssr_id_species2."\t".$ssr_unit_species2."\t".$ssr_repeat_species2."\t".$ssr_length_species2."\t".$ssr_chromosome_species2."\t".$ssr_chromosome_direction_species2."\t".$ssr_chromosome_start_species2."\t".$ssr_chromosome_end_species2."\t".$target_chromosome_start_species2."\t".$target_chromosome_end_species2."\t".$target_seqence_species2."\t".$target_sequence_length_species2."\n"; #result
+		if (($primer_forward =~ m/^[A|C|G|T]/) && ($primer_reverse =~ m/^[A|C|G|T]/)) {
+			print OUT $primer_id."\t".$ssr2marker_id."\t".$ssr_class."\t".$primer_pair_count."\t".$primer_pair_number."\t".$primer_forward."\t".$primer_forward_length."\t".$primer_forward_tm."\t".$primer_reverse."\t".$primer_reverse_length."\t".$primer_reverse_tm."\t".$target_sequence_difference."\t".$ssr_id_species1."\t".$ssr_unit_species1."\t".$ssr_repeat_species1."\t".$ssr_length_species1."\t".$ssr_chromosome_species1."\t".$ssr_chromosome_direction_species1."\t".$ssr_chromosome_start_species1."\t".$ssr_chromosome_end_species1."\t".$target_chromosome_start_species1."\t".$target_chromosome_end_species1."\t".$target_seqence_species1."\t".$target_sequence_length_species1."\t".$ssr_id_species2."\t".$ssr_unit_species2."\t".$ssr_repeat_species2."\t".$ssr_length_species2."\t".$ssr_chromosome_species2."\t".$ssr_chromosome_direction_species2."\t".$ssr_chromosome_start_species2."\t".$ssr_chromosome_end_species2."\t".$target_chromosome_start_species2."\t".$target_chromosome_end_species2."\t".$target_seqence_species2."\t".$target_sequence_length_species2."\n"; #result
+		}
 		
 		$i++;
 		if ($i > 999999) {
@@ -811,12 +835,12 @@ if (-s "./$workfile/primer_overall.txt") {
 	open (OUT, ">./$workfile/SSR2Marker.stat");
 	open (OUT1, ">./$workfile/SSR_Class.stat");
 	open (OUT2, ">./$workfile/Target_Sequence_Difference.stat");
-	open (OUT3, ">./$workfile/SSR_Length_$fasta1_base.stat");
-	open (OUT4, ">./$workfile/SSR_Chromosome_$fasta1_base.stat");
-	open (OUT5, ">./$workfile/Target_Sequence_Length_$fasta1_base.stat");
-	open (OUT6, ">./$workfile/SSR_Length_$fasta2_base.stat");
-	open (OUT7, ">./$workfile/SSR_Chromosome_$fasta2_base.stat");
-	open (OUT8, ">./$workfile/Target_Sequence_Length_$fasta2_base.stat");
+	open (OUT3, ">./$workfile/SSR_Length_$prefix_fasta1.stat");
+	open (OUT4, ">./$workfile/SSR_Chromosome_$prefix_fasta1.stat");
+	open (OUT5, ">./$workfile/Target_Sequence_Length_$prefix_fasta1.stat");
+	open (OUT6, ">./$workfile/SSR_Length_$prefix_fasta2.stat");
+	open (OUT7, ">./$workfile/SSR_Chromosome_$prefix_fasta2.stat");
+	open (OUT8, ">./$workfile/Target_Sequence_Length_$prefix_fasta2.stat");
 
 	my @in1 = <IN1>;
 	my $size_primer_multimatch = @in1; #title x
@@ -834,14 +858,14 @@ if (-s "./$workfile/primer_overall.txt") {
 
 	print OUT "The total number of identified SSR regions is $ssr2marker_count\.\n"; #title b
 
-	print OUT1 "\#"."SSR classes shared by $fasta1_base and $fasta2_base"."\t"."Count"."\n";
-	print OUT2 "\#"."Length difference of target sequences between $fasta1_base and $fasta2_base"."\t"."Count"."\n";
-	print OUT3 "\#"."SSR length in $fasta1_base"."\t"."Count"."\n";
-	print OUT4 "\#"."Chromosome distribution of SSRs in $fasta1_base"."\t"."Count"."\n";
-	print OUT5 "\#"."Target sequence length in $fasta1_base"."\t"."Count"."\n";
-	print OUT6 "\#"."SSR length in $fasta2_base"."\t"."Count"."\n";
-	print OUT7 "\#"."Chromosome distribution of SSRs in $fasta2_base"."\t"."Count"."\n";
-	print OUT8 "\#"."Target sequence length in $fasta2_base"."\t"."Count"."\n";
+	print OUT1 "\#"."SSR classes shared by $base_fasta1 and $base_fasta2"."\t"."Count"."\n";
+	print OUT2 "\#"."Length difference of target sequences between $base_fasta1 and $base_fasta2"."\t"."Count"."\n";
+	print OUT3 "\#"."SSR length in $base_fasta1"."\t"."Count"."\n";
+	print OUT4 "\#"."Chromosome distribution of SSRs in $base_fasta1"."\t"."Count"."\n";
+	print OUT5 "\#"."Target sequence length in $base_fasta1"."\t"."Count"."\n";
+	print OUT6 "\#"."SSR length in $base_fasta2"."\t"."Count"."\n";
+	print OUT7 "\#"."Chromosome distribution of SSRs in $base_fasta2"."\t"."Count"."\n";
+	print OUT8 "\#"."Target sequence length in $base_fasta2"."\t"."Count"."\n";
 
 	my %ssr_class; #line 3
 	my %target_sequence_difference; #line 12
@@ -945,7 +969,7 @@ if (-s "./$workfile/primer_overall.txt") {
 			$count_target_sequence_difference += $keys_target_sequence_difference[$i];
 		}
 		
-		print OUT "The total number of target sequences with different length between $fasta1_base and $fasta2_base is $count_target_sequence_difference\.\n"; #title d
+		print OUT "The total number of target sequences with different length between $base_fasta1 and $base_fasta2 is $count_target_sequence_difference\.\n"; #title d
 	}
 
 	# only min and max #
@@ -960,8 +984,33 @@ if (-s "./$workfile/primer_overall.txt") {
 	my $size_ssr_length_species1 = @keys_ssr_length_species1;
 
 	# only count #
+	my %rename1;
+	open (R1, "./$workfile/$prefix_fasta1.rename") || die $!;
+	while (<R1>) {
+		chomp;
+		if ($_) {
+			my @line = split m/\t/, $_;
+			chomp ($line[0]);
+			chomp ($line[1]);
+			$rename1{$line[0]} = $line[1];
+		}
+	}
+	close (R1);
+	my %rename2;
+	open (R2, "./$workfile/$prefix_fasta2.rename") || die $!;
+	while (<R2>) {
+		chomp;
+		if ($_) {
+			my @line = split m/\t/, $_;
+			chomp ($line[0]);
+			chomp ($line[1]);
+			$rename2{$line[0]} = $line[1];
+		}
+	}
+	close (R2);
+	
 	foreach (sort keys %ssr_chromosome_species1) {
-		print OUT4 $_."\t".$ssr_chromosome_species1{$_}."\n";
+		print OUT4 $rename1{$_}."\t".$ssr_chromosome_species1{$_}."\n";
 	}
 
 	my @keys_ssr_chromosome_species1 = keys %ssr_chromosome_species1;
@@ -991,7 +1040,7 @@ if (-s "./$workfile/primer_overall.txt") {
 
 	# only count #
 	foreach (sort keys %ssr_chromosome_species2) {
-		print OUT7 $_."\t".$ssr_chromosome_species2{$_}."\n";
+		print OUT7 $rename2{$_}."\t".$ssr_chromosome_species2{$_}."\n";
 	}
 
 	my @keys_ssr_chromosome_species2 = keys %ssr_chromosome_species2;
@@ -1008,12 +1057,12 @@ if (-s "./$workfile/primer_overall.txt") {
 	my @keys_target_sequence_length_species2 = keys %target_sequence_length_species2;
 	my $size_target_sequence_length_species2 = @keys_target_sequence_length_species2;
 
-	print OUT "The length of SSRs in $fasta1_base ranging from $min_ssr_length_species1 to $max_ssr_length_species1\.\n"; #title e
-	print OUT "The total number of chromosomes or sequences with identified SSRs in $fasta1_base is $size_ssr_chromosome_species1\.\n"; #title f
-	print OUT "The length of target sequences in $fasta1_base ranging from $min_target_sequence_length_species1 to $max_target_sequence_length_species1\.\n"; #title g
-	print OUT "The length of SSRs in $fasta2_base ranging from $min_ssr_length_species2 to $max_ssr_length_species2\.\n"; #title h
-	print OUT "The total number of chromosomes with identified SSRs in $fasta2_base is $size_ssr_chromosome_species2\.\n"; #title i
-	print OUT "The length of target sequences in $fasta2_base ranging from $min_target_sequence_length_species2 to $max_target_sequence_length_species2\.\n"; #title j
+	print OUT "The length of SSRs in $base_fasta1 ranging from $min_ssr_length_species1 to $max_ssr_length_species1\.\n"; #title e
+	print OUT "The total number of chromosomes or sequences with identified SSRs in $base_fasta1 is $size_ssr_chromosome_species1\.\n"; #title f
+	print OUT "The length of target sequences in $base_fasta1 ranging from $min_target_sequence_length_species1 to $max_target_sequence_length_species1\.\n"; #title g
+	print OUT "The length of SSRs in $base_fasta2 ranging from $min_ssr_length_species2 to $max_ssr_length_species2\.\n"; #title h
+	print OUT "The total number of chromosomes with identified SSRs in $base_fasta2 is $size_ssr_chromosome_species2\.\n"; #title i
+	print OUT "The length of target sequences in $base_fasta2 ranging from $min_target_sequence_length_species2 to $max_target_sequence_length_species2\.\n"; #title j
 
 	close (IN);
 	close (OUT);
@@ -1217,7 +1266,8 @@ sub setSSRMotif { ##(motif[<STDIN>]<int>)
 sub copyFastaFile { ##(inputFile[>id\nseq]<path>, outputFile[>id\nseq]<path>, renameSeqFile[id\tid]<path>, floatingNumber[number]<int>)
 	$/ = ">";
 	
-	my $filename_base = basename $_[1];	
+	my $base_thisfile = basename ($_[1]);	
+	my $prefixthisfile = basename ($_[1], @suffix_list);	
 	my $i = 0;
 	
 	open (IN, "$_[0]") || die ("\nError in $0: The file doesn't exist: $! !\n\n"); #input file
@@ -1234,8 +1284,8 @@ sub copyFastaFile { ##(inputFile[>id\nseq]<path>, outputFile[>id\nseq]<path>, re
 			$sequence =~ s/U/T/g;
 			$sequence =~ s/[BDEFHIJKLMOPQRSVWXYZ]/N/g;
 			my $id_serial = sprintf "%0$_[3]d", $i+1; #serial number
-			print OUT1 ">".$filename_base.$id_serial."\n".$sequence."\n";
-			print OUT2 $filename_base.$id_serial."\t".$id."\n";
+			print OUT1 ">".$prefixthisfile.$id_serial."\n".$sequence."\n";
+			print OUT2 $prefixthisfile.$id_serial."\t".$id."\n";
 			
 			$i++;
 		}
@@ -1379,8 +1429,9 @@ sub runMISAProgram { ##(inputFile[>id\nseq]<path>, outputFile[\t]<path>, setSSRM
 sub handleMISAResult { ##(inputFastaFile[>id\nseq]<path>, flankingSeqLength[number]<int>, floatingNumber[number]<int>)
 	$/ = ">";
 	undef my %hash;
-	my $filename_base = basename $_[0];
-	open (FA, "./$workfile/$filename_base") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+	my $base_thisfile = basename ($_[0]);
+	my $prefix_thisfile = basename ($_[0], @suffix_list);
+	open (FA, "./$workfile/$prefix_thisfile.fasta") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
 	my @fa = <FA>;
 	foreach (@fa) {
 		chomp;
@@ -1394,11 +1445,11 @@ sub handleMISAResult { ##(inputFastaFile[>id\nseq]<path>, flankingSeqLength[numb
 	close (FA);
 	
 	$/ = "\n";
-	open (MI, "./$workfile/$filename_base.misa") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
-	open (UP, ">./$workfile/$filename_base.up");
-	open (FULL, ">./$workfile/$filename_base.full");
-	open (DOWN, ">./$workfile/$filename_base.down");
-	open (UNIT, ">./$workfile/$filename_base.unit");
+	open (MI, "./$workfile/$prefix_thisfile.misa") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+	open (UP, ">./$workfile/$prefix_thisfile.up");
+	open (FULL, ">./$workfile/$prefix_thisfile.full");
+	open (DOWN, ">./$workfile/$prefix_thisfile.down");
+	open (UNIT, ">./$workfile/$prefix_thisfile.unit");
 	
 	my $get_length = $_[1];
 	my $max_value = 9 x $_[2];
@@ -1415,19 +1466,19 @@ sub handleMISAResult { ##(inputFastaFile[>id\nseq]<path>, flankingSeqLength[numb
 			chomp ($list[6]);
 			chomp ($list[7]);
 			if ($list[5] > $get_length) {
-				print UP $filename_base.$id."U"."\t".$list[0]."\t".($list[5]-$get_length)."\t".($list[5]-1)."\t".$list[3]."\t".substr($hash{$list[0]},$list[5]-$get_length-1,$get_length)."\n";
-				print FULL $filename_base.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t"."$get_length+1"."\t".($list[6]-$list[5]+$get_length+1)."\t".substr($hash{$list[0]},$list[5]-$get_length-1,$list[6]-$list[5]+$get_length*2+1)."\n";
-				print DOWN $filename_base.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
+				print UP $prefix_thisfile.$id."U"."\t".$list[0]."\t".($list[5]-$get_length)."\t".($list[5]-1)."\t".$list[3]."\t".substr($hash{$list[0]},$list[5]-$get_length-1,$get_length)."\n";
+				print FULL $prefix_thisfile.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".($get_length+1)."\t".($list[6]-$list[5]+$get_length+1)."\t".substr($hash{$list[0]},$list[5]-$get_length-1,$list[6]-$list[5]+$get_length*2+1)."\n";
+				print DOWN $prefix_thisfile.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
 			} elsif ($list[5] == 1) {
-				print UP $filename_base.$id."U"."\t".$list[0]."\t"."0"."\t"."0"."\t".$list[3]."\t"."N"."\n";
-				print FULL $filename_base.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[5]."\t".$list[6]."\t".substr($hash{$list[0]},0,$list[6]+$get_length)."\n";
-				print DOWN $filename_base.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length+1)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
+				print UP $prefix_thisfile.$id."U"."\t".$list[0]."\t"."0"."\t"."0"."\t".$list[3]."\t"."N"."\n";
+				print FULL $prefix_thisfile.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[5]."\t".$list[6]."\t".substr($hash{$list[0]},0,$list[6]+$get_length)."\n";
+				print DOWN $prefix_thisfile.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length+1)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
 			} else {
-				print UP $filename_base.$id."U"."\t".$list[0]."\t"."1"."\t".($list[5]-1)."\t".$list[3]."\t".substr($hash{$list[0]},0,$list[5]-1)."\n";
-				print FULL $filename_base.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[5]."\t".$list[6]."\t".substr($hash{$list[0]},0,$list[6]+$get_length)."\n";
-				print DOWN $filename_base.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
+				print UP $prefix_thisfile.$id."U"."\t".$list[0]."\t"."1"."\t".($list[5]-1)."\t".$list[3]."\t".substr($hash{$list[0]},0,$list[5]-1)."\n";
+				print FULL $prefix_thisfile.$id."\t".$list[0]."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[5]."\t".$list[6]."\t".substr($hash{$list[0]},0,$list[6]+$get_length)."\n";
+				print DOWN $prefix_thisfile.$id."D"."\t".$list[0]."\t".($list[6]+1)."\t".($list[6]+$get_length)."\t".$list[3]."\t".substr($hash{$list[0]},$list[6],$get_length)."\n";
 			}
-			print UNIT $filename_base.$id."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[7]."\n";
+			print UNIT $prefix_thisfile.$id."\t".$list[5]."\t".$list[6]."\t".$list[3]."\t".$list[7]."\n";
 			$i++;
 			if ($i >= $max_value) {
 				die ("\nError in $0: The system broke down under excessive loads due to the huge sequences !\nYou could split the input file and run this program again !\n\n");
@@ -1504,9 +1555,9 @@ sub handleMafftResult { ##(mafftFolder[>id\nseq]<path>, identifySeqFile[id\tseq]
 	mkdir "./temp/handle/";
 	my $dirname1 = "$_[0]";
 	opendir (DIR1, $dirname1);
-	while ((my $filename_base1 = readdir(DIR1))) {
-		open (IN, "$_[0]/$filename_base1") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
-		open ($filename_base1, ">>./temp/handle/$filename_base1");
+	while ((my $filename1 = readdir(DIR1))) {
+		open (IN, "$_[0]/$filename1") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+		open ($filename1, ">>./temp/handle/$filename1");
 		
 		my $j=0;
 		my @data;
@@ -1527,9 +1578,9 @@ sub handleMafftResult { ##(mafftFolder[>id\nseq]<path>, identifySeqFile[id\tseq]
 			}
 		}
 		for (@data) {
-			print $filename_base1 join("",@{$_}),"\n";
+			print $filename1 join("",@{$_}),"\n";
 		}
-		close ($filename_base1);
+		close ($filename1);
 	}
 	close (IN);
 	closedir(DIR1);
@@ -1538,10 +1589,10 @@ sub handleMafftResult { ##(mafftFolder[>id\nseq]<path>, identifySeqFile[id\tseq]
 	open (OUT, ">$_[1]");
 	my $dirname2 = "./temp/handle/";
 	opendir (DIR2, $dirname2);
-	while ((my $filename_base2 = readdir(DIR2))) {
-		if (-f "./temp/handle/$filename_base2") {
-			open (TMP, "./temp/handle/$filename_base2") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
-			my $id = $filename_base2;
+	while ((my $filename2 = readdir(DIR2))) {
+		if (-f "./temp/handle/$filename2") {
+			open (TMP, "./temp/handle/$filename2") || die ("\nError in $0: The file doesn't exist: $! !\n\n");
+			my $id = $filename2;
 			$id =~ s/\.mafft//;
 			print OUT $id."\t";
 			while (<TMP>) {
@@ -1743,8 +1794,9 @@ sub primerToEPCR { ##(inputFile[\t]<path>, seqFileName[$]<string>)
 		chomp ($line[0]);
 		chomp ($line[1]);
 		chomp ($line[3]);
-		my $filename = $line[0].".".$_[1];
-		system "re-PCR -s ./temp/epcr/$_[1].hash -n 1 -g 1 $line[1] $line[3] 50-1000 > ./temp/epcr/output/$filename";
+		my $prefix_thisfile = basename ($_[1], @suffix_list);
+		my $out_filename = $line[0].".".$prefix_thisfile;
+		system "re-PCR -s ./temp/epcr/$prefix_thisfile.hash -n 1 -g 1 $line[1] $line[3] 50-1000 > ./temp/epcr/output/$out_filename";
 	}
 	close (IN);
 }

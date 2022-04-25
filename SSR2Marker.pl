@@ -211,7 +211,7 @@ mkdir "./temp/output/";
 copy ("./$workfile/$prefix_fasta1.flanking.fasta", "./temp/db/reference.fasta");
 copy ("./$workfile/$prefix_fasta2.flanking.fasta", "./temp/input/query.fasta");
 
-&runBlastProgram ("./temp/db/reference.fasta", "./temp/input/query.fasta", "./temp/output/both_flanking_seq.blast", "1e-5", $thread);
+&runBlastProgram ("./temp/db/reference.fasta", "./temp/input/query.fasta", "./temp/output/both_flanking_seq.blast", "1e-5", 80);
 copy ("./temp/output/both_flanking_seq.blast", "./$workfile/");
 
 print "Beginning to identify single-copy SSRs \.\.\. \n"; #label
